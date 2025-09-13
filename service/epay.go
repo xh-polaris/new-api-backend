@@ -1,13 +1,13 @@
 package service
 
 import (
+	"one-api/setting"
 	"one-api/setting/operation_setting"
-	"one-api/setting/system_setting"
 )
 
 func GetCallbackAddress() string {
 	if operation_setting.CustomCallbackAddress == "" {
-		return system_setting.ServerAddress
+		return setting.ServerAddress
 	}
 	return operation_setting.CustomCallbackAddress
 }

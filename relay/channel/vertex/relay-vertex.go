@@ -12,10 +12,7 @@ func GetModelRegion(other string, localModelName string) string {
 		if m[localModelName] != nil {
 			return m[localModelName].(string)
 		} else {
-			if v, ok := m["default"]; ok {
-				return v.(string)
-			}
-			return "global"
+			return m["default"].(string)
 		}
 	}
 	return other

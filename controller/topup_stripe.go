@@ -9,7 +9,6 @@ import (
 	"one-api/model"
 	"one-api/setting"
 	"one-api/setting/operation_setting"
-	"one-api/setting/system_setting"
 	"strconv"
 	"strings"
 	"time"
@@ -217,8 +216,8 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 
 	params := &stripe.CheckoutSessionParams{
 		ClientReferenceID: stripe.String(referenceId),
-		SuccessURL:        stripe.String(system_setting.ServerAddress + "/log"),
-		CancelURL:         stripe.String(system_setting.ServerAddress + "/topup"),
+		SuccessURL:        stripe.String(setting.ServerAddress + "/log"),
+		CancelURL:         stripe.String(setting.ServerAddress + "/topup"),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(setting.StripePriceId),

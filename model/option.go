@@ -6,7 +6,6 @@ import (
 	"one-api/setting/config"
 	"one-api/setting/operation_setting"
 	"one-api/setting/ratio_setting"
-	"one-api/setting/system_setting"
 	"strconv"
 	"strings"
 	"time"
@@ -67,9 +66,9 @@ func InitOptionMap() {
 	common.OptionMap["SystemName"] = common.SystemName
 	common.OptionMap["Logo"] = common.Logo
 	common.OptionMap["ServerAddress"] = ""
-	common.OptionMap["WorkerUrl"] = system_setting.WorkerUrl
-	common.OptionMap["WorkerValidKey"] = system_setting.WorkerValidKey
-	common.OptionMap["WorkerAllowHttpImageRequestEnabled"] = strconv.FormatBool(system_setting.WorkerAllowHttpImageRequestEnabled)
+	common.OptionMap["WorkerUrl"] = setting.WorkerUrl
+	common.OptionMap["WorkerValidKey"] = setting.WorkerValidKey
+	common.OptionMap["WorkerAllowHttpImageRequestEnabled"] = strconv.FormatBool(setting.WorkerAllowHttpImageRequestEnabled)
 	common.OptionMap["PayAddress"] = ""
 	common.OptionMap["CustomCallbackAddress"] = ""
 	common.OptionMap["EpayId"] = ""
@@ -272,7 +271,7 @@ func updateOptionMap(key string, value string) (err error) {
 		case "SMTPSSLEnabled":
 			common.SMTPSSLEnabled = boolValue
 		case "WorkerAllowHttpImageRequestEnabled":
-			system_setting.WorkerAllowHttpImageRequestEnabled = boolValue
+			setting.WorkerAllowHttpImageRequestEnabled = boolValue
 		case "DefaultUseAutoGroup":
 			setting.DefaultUseAutoGroup = boolValue
 		case "ExposeRatioEnabled":
@@ -294,11 +293,11 @@ func updateOptionMap(key string, value string) (err error) {
 	case "SMTPToken":
 		common.SMTPToken = value
 	case "ServerAddress":
-		system_setting.ServerAddress = value
+		setting.ServerAddress = value
 	case "WorkerUrl":
-		system_setting.WorkerUrl = value
+		setting.WorkerUrl = value
 	case "WorkerValidKey":
-		system_setting.WorkerValidKey = value
+		setting.WorkerValidKey = value
 	case "PayAddress":
 		operation_setting.PayAddress = value
 	case "Chats":
