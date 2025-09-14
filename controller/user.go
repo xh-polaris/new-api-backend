@@ -100,6 +100,15 @@ func setupLogin(user *model.User, c *gin.Context) {
 	session.Set("role", user.Role)
 	session.Set("status", user.Status)
 	session.Set("group", user.Group)
+	session.Options(sessions.Options{
+		Domain:   ".aiecnu.net",         // 允许所有子域名共享 Cookie
+		Path:     "/",                   // 根路径生效
+		MaxAge:   86400 * 30,            // 过期时间（7天）
+		Secure:   false,                 // 不必须启用 HTTPS
+		HttpOnly: true,                  // 防止 XSS
+		SameSite: http.SameSiteNoneMode, // 允许跨站请求（如需跨域）
+	})
+
 	err := session.Save()
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
