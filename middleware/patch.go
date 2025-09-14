@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"net/http"
 	"one-api/util"
 	"strings"
 
@@ -14,10 +13,11 @@ func JWT2Session(c *gin.Context) {
 		split := strings.Replace(token, "Bearer ", "", 1)
 		claims, err := util.ParseToken(split)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"message": "无权进行此操作，未提供有效的 Authorization",
-			})
+			//c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			//	"success": false,
+			//	"message": "无权进行此操作，未提供有效的 Authorization",
+			//})
+			c.Next()
 			return
 		}
 
@@ -36,10 +36,11 @@ func JWT2Session(c *gin.Context) {
 
 		// 保存 session
 		if err := session.Save(); err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "无法保存 session 数据",
-			})
+			//c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			//	"success": false,
+			//	"message": "无法保存 session 数据",
+			//})
+			c.Next()
 			return
 		}
 	}
