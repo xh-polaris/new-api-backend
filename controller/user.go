@@ -102,8 +102,21 @@ func setupLogin(user *model.User, c *gin.Context) {
 	session.Set("group", user.Group)
 
 	err1 := session.Save()
-	cookie, err2 := c.Cookie("session")
-	if err1 != nil || err2 != nil {
+	if err1 != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "无法保存会话信息，请重试",
+			"success": false,
+		})
+		return
+	}
+	cookie := c.Writer.Header().Get("Set-Cookie")
+	// 提取 session= 后面的部分
+	token := ""
+	if strings.HasPrefix(cookie, "session=") {
+		token = strings.SplitN(cookie, ";", 2)[0][len("session="):]
+	}
+
+	if token == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "无法保存会话信息，请重试",
 			"success": false,
@@ -122,7 +135,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 		"message": "",
 		"success": true,
 		"data":    cleanUser,
-		"token":   cookie,
+		"token":   token,
 	})
 }
 
