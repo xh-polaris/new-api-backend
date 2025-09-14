@@ -10,6 +10,7 @@ import (
 	"one-api/logger"
 	"one-api/model"
 	"one-api/setting"
+	"one-api/util"
 	"strconv"
 	"strings"
 	"sync"
@@ -94,35 +95,16 @@ func Login(c *gin.Context) {
 
 // setup session & cookies and then return user info
 func setupLogin(user *model.User, c *gin.Context) {
-	session := sessions.Default(c)
-	session.Set("id", user.Id)
-	session.Set("username", user.Username)
-	session.Set("role", user.Role)
-	session.Set("status", user.Status)
-	session.Set("group", user.Group)
-
-	err1 := session.Save()
-	if err1 != nil {
+	// 生成token
+	token, _, err := util.GenerateToken(user.Id, user.Username, user.Role, user.Status, user.Group)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "无法保存会话信息，请重试",
 			"success": false,
 		})
 		return
 	}
-	cookie := c.Writer.Header().Get("Set-Cookie")
-	// 提取 session= 后面的部分
-	token := ""
-	if strings.HasPrefix(cookie, "session=") {
-		token = strings.SplitN(cookie, ";", 2)[0][len("session="):]
-	}
 
-	if token == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "无法保存会话信息，请重试",
-			"success": false,
-		})
-		return
-	}
 	cleanUser := model.User{
 		Id:          user.Id,
 		Username:    user.Username,

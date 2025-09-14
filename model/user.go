@@ -7,6 +7,7 @@ import (
 	"one-api/common"
 	"one-api/dto"
 	"one-api/logger"
+	"one-api/util"
 	"strconv"
 	"strings"
 
@@ -645,8 +646,12 @@ func ValidateAccessToken(token string) (user *User) {
 		return nil
 	}
 	token = strings.Replace(token, "Bearer ", "", 1)
+	claims, err := util.ParseToken(token)
+	if err != nil {
+		return nil
+	}
 	user = &User{}
-	if DB.Where("access_token = ?", token).First(user).RowsAffected == 1 {
+	if DB.Where("id = ?", claims.ID).First(user).RowsAffected == 1 {
 		return user
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"one-api/constant"
+	"one-api/util"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -97,6 +98,7 @@ func InitEnv() {
 	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
 	GlobalWebRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
+	util.InitKey()
 	initConstantEnv()
 }
 

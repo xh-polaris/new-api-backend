@@ -11,7 +11,7 @@ import (
 func SetApiRouter(router *gin.Engine) {
 	apiRouter := router.Group("/api")
 	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
-	apiRouter.Use(middleware.GlobalAPIRateLimit())
+	apiRouter.Use(middleware.GlobalAPIRateLimit()).Use(middleware.JWT2Session)
 	{
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", controller.PostSetup)
