@@ -101,8 +101,9 @@ func setupLogin(user *model.User, c *gin.Context) {
 	session.Set("status", user.Status)
 	session.Set("group", user.Group)
 
-	err := session.Save()
-	if err != nil {
+	err1 := session.Save()
+	cookie, err2 := c.Cookie("session")
+	if err1 != nil || err2 != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "无法保存会话信息，请重试",
 			"success": false,
@@ -121,6 +122,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 		"message": "",
 		"success": true,
 		"data":    cleanUser,
+		"token":   cookie,
 	})
 }
 
