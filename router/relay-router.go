@@ -55,7 +55,7 @@ func SetRelayRouter(router *gin.Engine) {
 		})
 	}
 
-	playgroundRouter := router.Group("/pg")
+	playgroundRouter := router.Group("/pg").Use(middleware.JWT2Session)
 	playgroundRouter.Use(middleware.UserAuth(), middleware.Distribute())
 	{
 		playgroundRouter.POST("/chat/completions", controller.Playground)
