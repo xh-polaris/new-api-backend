@@ -2,8 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/samber/lo"
 	"net/http"
 	"one-api/common"
 	"one-api/constant"
@@ -17,6 +15,9 @@ import (
 	relaycommon "one-api/relay/common"
 	"one-api/setting"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 )
 
 // https://platform.openai.com/docs/api-reference/models/list

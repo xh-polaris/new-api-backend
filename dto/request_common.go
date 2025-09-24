@@ -1,8 +1,9 @@
 package dto
 
 import (
-	"github.com/gin-gonic/gin"
 	"one-api/types"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Request interface {

@@ -60,30 +60,42 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewA
 	return err
 }
 
+// Relay 函数是一个通用的中继处理函数，用于处理不同格式的API请求转发
+// 参数:
+//
+//	c *gin.Context: Gin框架的上下文对象，包含HTTP请求和响应信息
+//	relayFormat types.RelayFormat: 中继格式类型，决定如何处理请求
 func Relay(c *gin.Context, relayFormat types.RelayFormat) {
-
+	// 获取请求ID用于日志追踪和错误消息标识 [1](@ref)
 	requestId := c.GetString(common.RequestIdKey)
+	// 获取当前使用的组和原始模型信息
 	group := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
 	originalModel := common.GetContextKeyString(c, constant.ContextKeyOriginalModel)
 
 	var (
-		newAPIError *types.NewAPIError
-		ws          *websocket.Conn
+		newAPIError *types.NewAPIError // 用于存储API错误信息
+		ws          *websocket.Conn    // WebSocket连接对象，仅用于实时通信格式
 	)
 
+	// 如果是OpenAI实时通信格式，需要升级到WebSocket连接
 	if relayFormat == types.RelayFormatOpenAIRealtime {
 		var err error
+		// 升级HTTP连接到WebSocket协议 [7](@ref)
 		ws, err = upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
+			// WebSocket连接失败时发送错误信息
 			helper.WssError(c, ws, types.NewError(err, types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry()).ToOpenAIError())
 			return
 		}
-		defer ws.Close()
+		defer ws.Close() // 确保函数退出时关闭WebSocket连接
 	}
 
+	// defer函数用于在返回前处理错误响应 [2](@ref)
 	defer func() {
 		if newAPIError != nil {
+			// 在错误消息中添加请求ID用于追踪
 			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
+			// 根据不同的中继格式返回相应的错误响应
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -100,58 +112,68 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}()
 
+	// 获取并验证请求参数 [6](@ref)
 	request, err := helper.GetAndValidateRequest(c, relayFormat)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest)
 		return
 	}
 
+	// 生成中继信息，包含请求转发的必要数据
 	relayInfo, err := relaycommon.GenRelayInfo(c, relayFormat, request, ws)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
 
+	// 获取用于token计数的元数据
 	meta := request.GetTokenCountMeta()
 
+	// 检查提示词是否包含敏感内容（如果配置开启）
 	if setting.ShouldCheckPromptSensitive() {
 		contains, words := service.CheckSensitiveText(meta.CombineText)
 		if contains {
+			// 记录敏感词检测警告日志
 			logger.LogWarn(c, fmt.Sprintf("user sensitive words detected: %s", strings.Join(words, ", ")))
 			newAPIError = types.NewError(err, types.ErrorCodeSensitiveWordsDetected)
 			return
 		}
 	}
 
+	// 计算请求的token数量
 	tokens, err := service.CountRequestToken(c, meta, relayInfo)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeCountTokenFailed)
 		return
 	}
 
+	// 设置提示词token数量到中继信息中
 	relayInfo.SetPromptTokens(tokens)
 
+	// 计算模型价格数据
 	priceData, err := helper.ModelPriceHelper(c, relayInfo, tokens, meta)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeModelPriceError)
 		return
 	}
 
-	// common.SetContextKey(c, constant.ContextKeyTokenCountMeta, meta)
-
+	// 预消耗配额（在实际转发前先检查并扣除配额）
 	newAPIError = service.PreConsumeQuota(c, priceData.ShouldPreConsumedQuota, relayInfo)
 	if newAPIError != nil {
 		return
 	}
 
+	// defer函数用于在返回前处理配额归还
+	// 只有当下游处理失败且配额确实被预消耗时，才归还配额
 	defer func() {
-		// Only return quota if downstream failed and quota was actually pre-consumed
 		if newAPIError != nil && relayInfo.FinalPreConsumedQuota != 0 {
 			service.ReturnPreConsumedQuota(c, relayInfo)
 		}
 	}()
 
+	// 重试机制：尝试多次获取可用通道并进行转发
 	for i := 0; i <= common.RetryTimes; i++ {
+		// 获取可用的通道（渠道）
 		channel, err := getChannel(c, group, originalModel, i)
 		if err != nil {
 			logger.LogError(c, err.Error())
@@ -159,32 +181,39 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			break
 		}
 
+		// 记录使用的通道信息
 		addUsedChannel(c, channel.Id)
+		// 重置请求体（因为Gin的上下文只能读取一次）
 		requestBody, _ := common.GetRequestBody(c)
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
+		// 根据不同的中继格式选择相应的处理函数 [5](@ref)
 		switch relayFormat {
 		case types.RelayFormatOpenAIRealtime:
-			newAPIError = relay.WssHelper(c, relayInfo)
+			newAPIError = relay.WssHelper(c, relayInfo) // WebSocket实时通信处理
 		case types.RelayFormatClaude:
-			newAPIError = relay.ClaudeHelper(c, relayInfo)
+			newAPIError = relay.ClaudeHelper(c, relayInfo) // Claude格式处理
 		case types.RelayFormatGemini:
-			newAPIError = geminiRelayHandler(c, relayInfo)
+			newAPIError = geminiRelayHandler(c, relayInfo) // Gemini格式处理
 		default:
-			newAPIError = relayHandler(c, relayInfo)
+			newAPIError = relayHandler(c, relayInfo) // 默认处理函数
 		}
 
+		// 如果没有错误，说明处理成功，直接返回
 		if newAPIError == nil {
 			return
 		}
 
+		// 处理通道错误（如记录错误次数、自动禁用等）
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
+		// 检查是否应该继续重试
 		if !shouldRetry(c, newAPIError, common.RetryTimes-i) {
 			break
 		}
 	}
 
+	// 记录重试日志（如果使用了多个通道）
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))

@@ -26,6 +26,7 @@ import (
 )
 
 func main() {
+	http.DefaultTransport = model.NewLoggingTransport()
 
 	err := InitResources()
 	if err != nil {
