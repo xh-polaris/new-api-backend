@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"one-api/logger"
+	"strings"
 	"time"
 )
 
@@ -55,14 +56,28 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		return nil, err
 	}
 
-	// 使用TeeReader复制一份响应, 当返回结束时buf会得到拷贝的响应
-	var buf bytes.Buffer
-	r := io.TeeReader(resp.Body, &buf)
-	resp.Body = &rc{Reader: r, closeFunc: func() error {
-		l.Res = buf.String()
+	if strings.Contains(resp.Header.Get("Content-Type"), "application/json") { // 非流式响应
+		// 非流式响应：读取整个响应体内容
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			l.Err = err.Error()
+			PostProcess(l)
+			return nil, err
+		}
+		_ = resp.Body.Close()
+		l.Res = string(bodyBytes)
+		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		PostProcess(l)
-		return nil
-	}}
+	} else {
+		// 使用TeeReader复制一份响应, 当返回结束时buf会得到拷贝的响应
+		var buf bytes.Buffer
+		r := io.TeeReader(resp.Body, &buf)
+		resp.Body = &rc{Reader: r, closeFunc: func() error {
+			l.Res = buf.String()
+			PostProcess(l)
+			return nil
+		}}
+	}
 	return resp, nil
 }
 
